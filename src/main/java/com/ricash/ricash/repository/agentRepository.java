@@ -18,4 +18,5 @@ public interface agentRepository extends JpaRepository<Agent, Long> {
     List<Agent> findByEstValideFalseAndKycStatut(statutKYC statutKYC);
     List<Agent> findByEstActifTrue();
     List<Agent> findByEstActifFalse();
+    List<Agent> findByAgence_Id(Long agenceId);
 }

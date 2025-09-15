@@ -31,9 +31,9 @@ public class Agence {
     private boolean estActive;
 
     // Relations
-    @OneToMany(mappedBy = "agence")
-    private List<Agent> agents;
-
+    @OneToOne
+    @JoinColumn(name = "agent_id", referencedColumnName = "id")
+    private Agent agent;
     @ManyToOne
     @JoinColumn(name = "admin_id")
     private Admin admin;

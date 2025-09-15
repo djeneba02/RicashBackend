@@ -65,8 +65,7 @@ public class Agent {
     private String role = "AGENT";
 
     // Relations
-    @ManyToOne
-    @JoinColumn(name = "agence_id")
+    @OneToOne(mappedBy = "agent")
     private Agence agence;
 
     @ManyToOne

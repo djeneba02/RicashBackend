@@ -13,6 +13,7 @@ public interface userRepository extends JpaRepository<User, Long> {
     List<User> findByActifTrue();
     List<User> findByActifFalse();
     List<User> findByKycStatut(statutKYC kycStatut);
+    Optional<User> findByTelephone(String telephone);
     List<User> findByActifTrueAndKycStatut(statutKYC kycStatut);
     List<User> findByActifFalseAndKycStatut(statutKYC kycStatut);
     boolean existsByDocumentsIdentiteNumero(String identifiant);

@@ -1,4 +1,13 @@
 package com.ricash.ricash.repository;
 
-public interface agenceRepository {
+import com.ricash.ricash.model.Agence;
+import org.springframework.data.jpa.repository.JpaRepository;
+
+import java.util.Optional;
+
+public interface agenceRepository extends JpaRepository<Agence, Long> {
+    Optional<Agence> findByNom(String nom);
+    Optional<Agence> findByTelephone(String telephone);
+    Optional<Agence> findByAgent_Id(Long agentId);
+
 }
