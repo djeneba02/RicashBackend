@@ -5,7 +5,7 @@ target/
 !**/src/test/**/target/
 
 # Ignorer un dossier
-ricash-83a56-firebase-clé.json/
+src/main/resources/ricash-83a56-firebase-clé.json
 
 ### STS ###
 .apt_generated
