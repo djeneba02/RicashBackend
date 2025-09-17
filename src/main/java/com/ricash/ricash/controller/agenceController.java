@@ -1,9 +1,6 @@
 package com.ricash.ricash.controller;
 
 import com.ricash.ricash.dto.AgenceDTO;
-import com.ricash.ricash.dto.AgentValidationRequest;
-import com.ricash.ricash.model.Agence;
-import com.ricash.ricash.model.Agent;
 import com.ricash.ricash.service.agenceService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -56,4 +53,6 @@ public class agenceController {
             return ResponseEntity.badRequest().body(e.getMessage());
         }
     }
+
+
 }

@@ -1,4 +1,8 @@
 package com.ricash.ricash.repository;
 
-public interface beneficiaireRepository {
+import com.ricash.ricash.model.Beneficiaire;
+import org.springframework.data.jpa.repository.JpaRepository;
+
+public interface beneficiaireRepository extends JpaRepository<Beneficiaire, Long> {
+
 }

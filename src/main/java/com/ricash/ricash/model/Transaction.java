@@ -59,12 +59,17 @@ public class Transaction {
     @JoinColumn(name = "destinataire_id")
     private User destinataire;
 
+    @ManyToOne @JoinColumn(name = "expediteur_agent_id")
+    private Agent expediteurAgent;
+
+    @ManyToOne @JoinColumn(name = "destinataire_agent_id")
+    private Agent destinataireAgent;
+
     @ManyToOne
     @JoinColumn(name = "beneficiaire_id")
     private Beneficiaire beneficiaire;
 
-    @ManyToOne
-    @JoinColumn(name = "agent_id")
+    @ManyToOne @JoinColumn(name = "agent_operateur_id")
     private Agent agent;
 
     @ManyToOne

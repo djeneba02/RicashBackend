@@ -6,6 +6,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import java.math.BigDecimal;
 import java.util.Date;
 @Entity @Getter
 @Setter @AllArgsConstructor @NoArgsConstructor
@@ -13,7 +14,7 @@ public class Wallet {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-    private Number solde;
+    private BigDecimal solde;
     private String devise;
     private Date dateDerniereMAJ;
 
