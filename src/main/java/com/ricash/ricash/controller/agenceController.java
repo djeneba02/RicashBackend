@@ -34,11 +34,34 @@ public class agenceController {
         }
     }
 
-
     @GetMapping
     public ResponseEntity<List<AgenceDTO>> getAllAgences() {
         List<AgenceDTO> agences = agenceService.getAllAgences();
         return ResponseEntity.ok(agences);
+    }
+
+    @GetMapping("/avec-solde")
+    public ResponseEntity<List<AgenceDTO>> getAllAgencesAvecSolde() {
+        List<AgenceDTO> agences = agenceService.getAllAgencesAvecSolde();
+        return ResponseEntity.ok(agences);
+    }
+
+    @GetMapping("/actives")
+    public ResponseEntity<List<AgenceDTO>> getAgencesActives() {
+        List<AgenceDTO> agences = agenceService.getAgencesActivesAvecSolde();
+        return ResponseEntity.ok(agences);
+    }
+
+    @GetMapping("/inactives")
+    public ResponseEntity<List<AgenceDTO>> getAgencesInactives() {
+        List<AgenceDTO> agences = agenceService.getAgencesInactivesAvecSolde();
+        return ResponseEntity.ok(agences);
+    }
+
+    @GetMapping("/solde-total")
+    public ResponseEntity<Double> getSoldeTotalAgences() {
+        Double soldeTotal = agenceService.getSoldeTotalAgences();
+        return ResponseEntity.ok(soldeTotal);
     }
 
     @PatchMapping("/{agenceId}/status")

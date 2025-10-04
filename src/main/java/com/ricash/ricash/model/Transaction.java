@@ -33,12 +33,15 @@ public class Transaction {
 
     private double tauxChange;
 
-    private double codeTransaction;
+    private String codeTransaction;
+
+    private String raisonRejet;
 
     @Enumerated(EnumType.STRING)
     private statutTransaction statut;     
 
     @Enumerated(EnumType.STRING)
+    @Column(length = 50)
     private typeTransaction type;
 
     @Enumerated(EnumType.STRING)

@@ -1,27 +1,33 @@
 package com.ricash.ricash.dto;
 
-import com.google.firebase.database.annotations.NotNull;
 import com.ricash.ricash.model.Enum.methodePaiement;
 import com.ricash.ricash.model.Enum.typeTransaction;
-import jakarta.validation.constraints.DecimalMin;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
-
-import java.math.BigDecimal;
 
 @Data
 public class TransferRequest {
     private String devise;
     private typeTransaction type;
     private methodePaiement methodePaiement;
-    private double montantTotal;
     private double montant;
+    private double montantTotal;
 
-    // Selon le type de transaction
+    // Gérer différentes casse avec @JsonProperty
+    @JsonProperty("expediteurId")
     private Long expediteurId;
+
+    @JsonProperty("destinataireId")
     private Long destinataireId;
+
+    @JsonProperty("agentId")
     private Long agentId;
+
+    @JsonProperty("agentExpediteurId")
     private Long agentExpediteurId;
+
+    @JsonProperty("agentDestinataireId")
     private Long agentDestinataireId;
+
     private Long beneficiaireId;
 }
-

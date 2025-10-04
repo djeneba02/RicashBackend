@@ -4,6 +4,7 @@ import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseAuthException;
 import com.google.firebase.auth.FirebaseToken;
 import com.ricash.ricash.config.FirebaseTokendFilter;
+import com.ricash.ricash.dto.AdresseDTO;
 import com.ricash.ricash.dto.AgenceDTO;
 import com.ricash.ricash.model.Admin;
 import com.ricash.ricash.model.Adresse;
@@ -34,6 +35,20 @@ public class agenceServiceImpl implements agenceService {
         this.agentRepository = agentRepository;
     }
 
+    // Méthode pour convertir Adresse en AdresseDTO
+    private AdresseDTO convertToAdresseDTO(Adresse adresse) {
+        if (adresse == null) return null;
+
+        AdresseDTO dto = new AdresseDTO();
+        dto.setId(adresse.getId());
+        dto.setLigne1(adresse.getLigne1());
+        dto.setLigne2(adresse.getLigne2());
+        dto.setVille(adresse.getVille());
+        dto.setCodePostal(adresse.getCodePostal());
+        dto.setPays(adresse.getPays());
+        return dto;
+    }
+
     public AgenceDTO convertToDTO(Agence agence) {
         AgenceDTO dto = new AgenceDTO();
         dto.setId(agence.getId());
@@ -43,23 +58,28 @@ public class agenceServiceImpl implements agenceService {
 
         if (agence.getAgent() != null) {
             dto.setAgentNom(agence.getAgent().getNom());
+            dto.setSolde(agence.getAgent().getSoldeCaisse());
+        } else {
+            dto.setSolde(0.0);
         }
 
         if (agence.getAdresse() != null) {
-            // Créer une copie des données sans référence circulaire
-            Adresse adresse = new Adresse();
-            adresse.setId(agence.getAdresse().getId());
-            adresse.setLigne1(agence.getAdresse().getLigne1());
-            adresse.setLigne2(agence.getAdresse().getLigne2());
-            adresse.setPays(agence.getAdresse().getPays());
-            adresse.setVille(agence.getAdresse().getVille());
-            adresse.setCodePostal(agence.getAdresse().getCodePostal());
-            dto.setAdresse(adresse);
+            dto.setAdresse(convertToAdresseDTO(agence.getAdresse()));
         }
 
         return dto;
     }
 
+    private Double getSoldeAgence(Long agenceId) {
+        Agence agence = agenceRepository.findById(agenceId)
+                .orElseThrow(() -> new RuntimeException("Agence non trouvée"));
+
+        if (agence.getAgent() != null) {
+            return agence.getAgent().getSoldeCaisse();
+        }
+
+        return 0.0;
+    }
 
     @Override
     public AgenceDTO createAgenceByAgent(AgenceDTO request, String token) {
@@ -92,7 +112,6 @@ public class agenceServiceImpl implements agenceService {
                 throw new RuntimeException("Téléphone déjà utilisé");
             }
 
-            // Créer une nouvelle adresse pour éviter les références circulaires
             Adresse adresse = new Adresse();
             adresse.setLigne1(request.getAdresse().getLigne1());
             adresse.setLigne2(request.getAdresse().getLigne2());
@@ -114,7 +133,6 @@ public class agenceServiceImpl implements agenceService {
             throw new RuntimeException("Token Firebase invalide: " + e.getMessage());
         }
     }
-
 
     @Override
     public List<AgenceDTO> getAllAgences() {
@@ -149,5 +167,52 @@ public class agenceServiceImpl implements agenceService {
         } catch (FirebaseAuthException e) {
             throw new RuntimeException("Token Firebase invalide: " + e.getMessage());
         }
+    }
+
+    @Override
+    public List<AgenceDTO> getAllAgencesAvecSolde() {
+        return agenceRepository.findAll().stream()
+                .map(agence -> {
+                    AgenceDTO agenceDTO = convertToDTO(agence);
+                    // Le solde est déjà défini dans convertToDTO, pas besoin de le recalculer
+                    return agenceDTO;
+                })
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public List<AgenceDTO> getAgencesActivesAvecSolde() {
+        return agenceRepository.findByEstActive(true).stream()
+                .map(this::convertToDTO)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public List<AgenceDTO> getAgencesInactivesAvecSolde() {
+        return agenceRepository.findByEstActive(false).stream()
+                .map(this::convertToDTO)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public List<AgenceDTO> getAgencesRejeteesAvecSolde() {
+        return agenceRepository.findAll().stream()
+                .filter(agence -> agence.getAgent() != null &&
+                        !agence.getAgent().isEstValide() &&
+                        agence.getAgent().getRaisonRejet() != null)
+                .map(this::convertToDTO)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public Double getSoldeTotalAgences() {
+        return agenceRepository.findAll().stream()
+                .mapToDouble(agence -> {
+                    if (agence.getAgent() != null) {
+                        return agence.getAgent().getSoldeCaisse();
+                    }
+                    return 0.0;
+                })
+                .sum();
     }
 }

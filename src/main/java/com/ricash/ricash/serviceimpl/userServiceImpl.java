@@ -6,13 +6,12 @@ import com.google.firebase.auth.FirebaseToken;
 import com.google.firebase.auth.UserRecord;
 import com.ricash.ricash.config.FirebaseAuthService;
 import com.ricash.ricash.config.FirebaseTokendFilter;
+import com.ricash.ricash.Mappe.UserMapper;
 import com.ricash.ricash.dto.UserRegistrationRequest;
-import com.ricash.ricash.model.Admin;
-import com.ricash.ricash.model.Agent;
-import com.ricash.ricash.model.DocumentIdentite;
+import com.ricash.ricash.dto.UserResponseDTO;
+import com.ricash.ricash.model.*;
 import com.ricash.ricash.model.Enum.statutKYC;
 import com.ricash.ricash.model.Enum.typeDocument;
-import com.ricash.ricash.model.User;
 import com.ricash.ricash.repository.adminRepository;
 import com.ricash.ricash.repository.documentIdentiteRepository;
 import com.ricash.ricash.repository.userRepository;
@@ -26,6 +25,7 @@ import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -36,6 +36,7 @@ import java.time.LocalDateTime;
 import java.util.Date;
 import java.util.List;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 
 @Transactional
@@ -43,6 +44,7 @@ import java.util.UUID;
 public class userServiceImpl implements userService {
 
     private final documentIdentiteRepository documentIdentiteRepository;
+    private final UserMapper userMapper;
     private final adminRepository adminRepository;
     private final userRepository userRepository;
     private final PasswordEncoder passwordEncoder;
@@ -50,8 +52,9 @@ public class userServiceImpl implements userService {
     private final FirebaseStorageService firebaseStorageService;
     private final FirebaseTokendFilter firebaseTokendFilter;
 
-    public userServiceImpl(documentIdentiteRepository documentIdentiteRepository, adminRepository adminRepository, userRepository userRepository, PasswordEncoder passwordEncoder, FirebaseAuthService firebaseAuthService, FirebaseStorageService firebaseStorageService, FirebaseTokendFilter firebaseTokendFilter) {
+    public userServiceImpl(documentIdentiteRepository documentIdentiteRepository, UserMapper userMapper, adminRepository adminRepository, userRepository userRepository, PasswordEncoder passwordEncoder, FirebaseAuthService firebaseAuthService, FirebaseStorageService firebaseStorageService, FirebaseTokendFilter firebaseTokendFilter) {
         this.documentIdentiteRepository = documentIdentiteRepository;
+        this.userMapper = userMapper;
         this.adminRepository = adminRepository;
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
@@ -97,6 +100,13 @@ public class userServiceImpl implements userService {
         user.setActif(false); // Désactivé jusqu'à validation
         user.setRole("USER");
         user.setKycStatut(statutKYC.EN_COURS);
+
+        Wallet wallet = new Wallet();
+        wallet.setSolde(BigDecimal.ZERO); // Solde initial à 0
+        wallet.setDevise("XOF"); // Devise par défaut
+        wallet.setDateDerniereMAJ(new Date());
+        wallet.setUtilisateur(user); // Lier le wallet à l'utilisateur
+        user.setPortefeuille(wallet); // Lier l'utilisateur au wallet
 
         // Vérifier que le typeDocument est fourni
         if (userRequest.getTypeDocument() == null || userRequest.getTypeDocument().isEmpty()) {
@@ -168,6 +178,18 @@ public class userServiceImpl implements userService {
             }
         }
         user.setDocumentsIdentite(java.util.List.of(document));
+
+        // Créer et lier l'adresse
+        if (userRequest.getLigne1() != null && !userRequest.getLigne1().isEmpty()) {
+            Adresse adresse = new Adresse();
+            adresse.setLigne1(userRequest.getLigne1());
+            adresse.setLigne2(userRequest.getLigne2());
+            adresse.setVille(userRequest.getVille());
+            adresse.setCodePostal(userRequest.getCodePostal());
+            adresse.setPays(userRequest.getPays());
+            adresse.setUtilisateur(user); // Lier l'adresse à l'utilisateur
+            user.setAdresse(adresse); // Lier l'utilisateur à l'adresse
+        }
 
         return userRepository.save(user);
     }
@@ -281,17 +303,55 @@ public class userServiceImpl implements userService {
     }
 
     @Override
-    public List<User> getAllUsers() {
-        return userRepository.findAll();
+    public List<UserResponseDTO> getActiveUsers() {
+        List<User> users = userRepository.findByActifTrue();
+        return users.stream()
+                .map(userMapper::toDto)
+                .collect(Collectors.toList());
     }
 
     @Override
-    public List<User> getActiveUsers() {
-        return userRepository.findByActifTrue();
+    public List<UserResponseDTO> getInactiveUsers() {
+        List<User> users = userRepository.findByActifFalse();
+        return users.stream()
+                .map(userMapper::toDto)
+                .collect(Collectors.toList());
     }
 
     @Override
-    public List<User> getInactiveUsers() {
-        return userRepository.findByActifFalse();
+    public List<UserResponseDTO> getUsersByKycStatus(String kycStatus) {
+        return List.of();
+    }
+
+    @Override
+    public List<UserResponseDTO> getUsersWithActiveKyc() {
+        List<User> users = userRepository.findByKycStatut(statutKYC.VERIFIE);
+        return users.stream()
+                .map(userMapper::toDto)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public List<UserResponseDTO> getUsersWithRejectedKyc() {
+        List<User> users = userRepository.findByKycStatut(statutKYC.REJETE);
+        return users.stream()
+                .map(userMapper::toDto)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public List<UserResponseDTO> getUsersWithPendingKyc() {
+        List<User> users = userRepository.findByKycStatut(statutKYC.EN_COURS);
+        return users.stream()
+                .map(userMapper::toDto)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public List<UserResponseDTO> getAllUsers() {
+        List<User> users = userRepository.findAll();
+        return users.stream()
+                .map(userMapper::toDto)
+                .collect(Collectors.toList());
     }
 }

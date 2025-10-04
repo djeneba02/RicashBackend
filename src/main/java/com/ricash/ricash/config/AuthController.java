@@ -1,13 +1,16 @@
 package com.ricash.ricash.config;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.api.client.util.Value;
+import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseAuthException;
+import com.google.firebase.auth.FirebaseToken;
 import com.google.firebase.auth.UserRecord;
-import com.ricash.ricash.dto.LoginRequest;
-import com.ricash.ricash.dto.UserRegistrationRequest;
+import com.ricash.ricash.Mappe.AdminMapper;
+import com.ricash.ricash.dto.*;
+import com.ricash.ricash.Mappe.UserMapper;
+import com.ricash.ricash.Mappe.AgentMapper;
 import com.ricash.ricash.model.Admin;
 import com.ricash.ricash.model.Agent;
 import com.ricash.ricash.model.User;
@@ -37,6 +40,7 @@ public class AuthController {
     @Value("${firebase.api.key}")
     private String ApiKey;
 
+    private final FirebaseAuth firebaseAuth;
     private final agentService agentService;
     private final userService userService;
     private final FirebaseAuthService firebaseAuthService;
@@ -45,8 +49,12 @@ public class AuthController {
     private final adminRepository adminRepository;
     private final PasswordEncoder passwordEncoder;
     private final ObjectMapper objectMapper;
+    private final UserMapper userMapper;
+    private final AgentMapper agentMapper;
+    private final AdminMapper adminMapper;
 
-    public AuthController(agentService agentService, userService userService, FirebaseAuthService firebaseAuthService, userRepository userRepository, agentRepository agentRepository, adminRepository adminRepository, PasswordEncoder passwordEncoder, ObjectMapper objectMapper) {
+    public AuthController(FirebaseAuth firebaseAuth, agentService agentService, userService userService, FirebaseAuthService firebaseAuthService, userRepository userRepository, agentRepository agentRepository, adminRepository adminRepository, PasswordEncoder passwordEncoder, ObjectMapper objectMapper, UserMapper userMapper, AgentMapper agentMapper, AdminMapper adminMapper) {
+        this.firebaseAuth = firebaseAuth;
         this.agentService = agentService;
         this.userService = userService;
         this.firebaseAuthService = firebaseAuthService;
@@ -55,6 +63,9 @@ public class AuthController {
         this.adminRepository = adminRepository;
         this.passwordEncoder = passwordEncoder;
         this.objectMapper = objectMapper;
+        this.userMapper = userMapper;
+        this.agentMapper = agentMapper;
+        this.adminMapper = adminMapper;
     }
 
     @PostMapping(value = "/register/user", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
@@ -80,6 +91,10 @@ public class AuthController {
             response.put("uid", createdUser.getUid());
             response.put("role", "USER");
             response.put("status", "PENDING_VALIDATION");
+
+            if (createdUser.getAdresse() != null) {
+                response.put("adresseCree", true);
+            }
 
             return ResponseEntity.ok(response);
 
@@ -180,22 +195,22 @@ public class AuthController {
     }
 
     // Get user profile
-    @GetMapping("/profile/{uid}")
-    public ResponseEntity<?> getProfile(@PathVariable String uid) {
-        Optional<User> user = userRepository.findByUid(uid);
-        Optional<Agent> agent = agentRepository.findByUid(uid);
-        Optional<Admin> admin = adminRepository.findByUid(uid);
-
-        if (user.isPresent()) {
-            return ResponseEntity.ok(user.get());
-        } else if (agent.isPresent()) {
-            return ResponseEntity.ok(agent.get());
-        } else if (admin.isPresent()) {
-            return ResponseEntity.ok(admin.get());
-        } else {
-            return ResponseEntity.notFound().build();
-        }
-    }
+//    @GetMapping("/profile/{uid}")
+//    public ResponseEntity<?> getProfile(@PathVariable String uid) {
+//        Optional<User> user = userRepository.findByUid(uid);
+//        Optional<Agent> agent = agentRepository.findByUid(uid);
+//        Optional<Admin> admin = adminRepository.findByUid(uid);
+//
+//        if (user.isPresent()) {
+//            return ResponseEntity.ok(user.get());
+//        } else if (agent.isPresent()) {
+//            return ResponseEntity.ok(agent.get());
+//        } else if (admin.isPresent()) {
+//            return ResponseEntity.ok(admin.get());
+//        } else {
+//            return ResponseEntity.notFound().build();
+//        }
+//    }
 
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody LoginRequest loginRequest) {
@@ -250,14 +265,21 @@ public class AuthController {
     }
 
     // Endpoint pour vérifier le token
+// Dans AuthController.java - Remplacer l'endpoint verify-token
     @PostMapping("/verify-token")
-    public ResponseEntity<?> verifyToken(@RequestParam String idToken) {
+    public ResponseEntity<?> verifyToken(@RequestHeader("Authorization") String authHeader) {
         try {
-            // Implémentez la vérification du token si nécessaire
-            return ResponseEntity.ok(Map.of("valid", true, "message", "Token valide"));
+            String token = authHeader.replace("Bearer ", "").trim();
+            FirebaseToken decodedToken = firebaseAuth.verifyIdToken(token);
+
+            return ResponseEntity.ok(Map.of(
+                    "valid", true,
+                    "message", "Token valide",
+                    "uid", decodedToken.getUid()
+            ));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(
-                    Map.of("valid", false, "error", "Token invalide")
+                    Map.of("valid", false, "error", "Token invalide: " + e.getMessage())
             );
         }
     }
@@ -281,5 +303,185 @@ public class AuthController {
                     Map.of("error", "Échec du rafraîchissement du token")
             );
         }
+    }
+
+
+
+    // Récupérer le profil de l'utilisateur connecté
+    @GetMapping("/me")
+    public ResponseEntity<?> getCurrentUserProfile(@RequestHeader("Authorization") String authHeader) {
+        try {
+            String token = authHeader.replace("Bearer ", "").trim();
+            FirebaseToken decodedToken = firebaseAuth.verifyIdToken(token);
+            String uid = decodedToken.getUid();
+
+            return getProfile(uid); // Réutilise votre méthode existante
+
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(
+                    Map.of("error", "Token invalide", "message", e.getMessage())
+            );
+        }
+    }
+
+    // Mettre à jour le profil utilisateur
+    @PutMapping("/profile/update")
+    public ResponseEntity<?> updateProfile(
+            @RequestBody Map<String, Object> updates,
+            @RequestHeader("Authorization") String authHeader) {
+
+        try {
+            String token = authHeader.replace("Bearer ", "").trim();
+            FirebaseToken decodedToken = firebaseAuth.verifyIdToken(token);
+            String uid = decodedToken.getUid();
+
+            // Trouver l'utilisateur par UID
+            Optional<User> userOpt = userRepository.findByUid(uid);
+            Optional<Agent> agentOpt = agentRepository.findByUid(uid);
+            Optional<Admin> adminOpt = adminRepository.findByUid(uid);
+
+            if (userOpt.isPresent()) {
+                User user = userOpt.get();
+                updateUserFromMap(user, updates);
+                User savedUser = userRepository.save(user);
+                UserResponseDTO responseDTO = userMapper.toDto(savedUser);
+                return ResponseEntity.ok(responseDTO);
+
+            } else if (agentOpt.isPresent()) {
+                Agent agent = agentOpt.get();
+                updateAgentFromMap(agent, updates);
+                Agent savedAgent = agentRepository.save(agent);
+                AgentDTO responseDTO = agentMapper.toDto(savedAgent);
+                return ResponseEntity.ok(responseDTO);
+
+            } else if (adminOpt.isPresent()) {
+                Admin admin = adminOpt.get();
+                updateAdminFromMap(admin, updates);
+                Admin savedAdmin = adminRepository.save(admin);
+                AdminSimpleDTO responseDTO = adminMapper.toDto(savedAdmin);
+                return ResponseEntity.ok(responseDTO);
+            }
+
+            return ResponseEntity.notFound().build();
+
+        } catch (FirebaseAuthException e) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(Map.of("error", "Token invalide", "message", e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", "Erreur lors de la mise à jour", "message", e.getMessage()));
+        }
+    }
+
+    // Méthodes helper pour la mise à jour
+    private void updateUserFromMap(User user, Map<String, Object> updates) {
+        if (updates.containsKey("nom")) user.setNom((String) updates.get("nom"));
+        if (updates.containsKey("prenom")) user.setPrenom((String) updates.get("prenom"));
+        if (updates.containsKey("telephone")) user.setTelephone((String) updates.get("telephone"));
+        if (updates.containsKey("email")) user.setEmail((String) updates.get("email"));
+    }
+
+    private void updateAgentFromMap(Agent agent, Map<String, Object> updates) {
+        if (updates.containsKey("nom")) agent.setNom((String) updates.get("nom"));
+        if (updates.containsKey("prenom")) agent.setPrenom((String) updates.get("prenom"));
+        if (updates.containsKey("telephone")) agent.setTelephone((String) updates.get("telephone"));
+        if (updates.containsKey("email")) agent.setEmail((String) updates.get("email"));
+    }
+
+    private void updateAdminFromMap(Admin admin, Map<String, Object> updates) {
+        if (updates.containsKey("nom")) admin.setNom((String) updates.get("nom"));
+        if (updates.containsKey("prenom")) admin.setPrenom((String) updates.get("prenom"));
+        if (updates.containsKey("telephone")) admin.setTelephone((String) updates.get("telephone"));
+        if (updates.containsKey("email")) admin.setEmail((String) updates.get("email"));
+    }
+
+    @GetMapping("/profile/{uid}")
+    public ResponseEntity<?> getProfile(@PathVariable String uid) {
+        Optional<User> user = userRepository.findByUid(uid);
+        if (user.isPresent()) {
+            return ResponseEntity.ok(userMapper.toDto(user.get()));
+        }
+
+        Optional<Agent> agent = agentRepository.findByUid(uid);
+        if (agent.isPresent()) {
+            return ResponseEntity.ok(agentMapper.toDto(agent.get()));
+        }
+        Optional<Admin> admin = adminRepository.findByUid(uid);
+        if (admin.isPresent()) {
+            return ResponseEntity.ok(adminMapper.toDto(admin.get()));
+        }
+        return ResponseEntity.notFound().build();
+    }
+
+    @PostMapping("/change-password")
+    public ResponseEntity<?> changePassword(
+            @RequestBody Map<String, String> passwordData,
+            @RequestHeader("Authorization") String authHeader) {
+
+        try {
+            String token = authHeader.replace("Bearer ", "").trim();
+            FirebaseToken decodedToken = firebaseAuth.verifyIdToken(token);
+            String uid = decodedToken.getUid();
+            String currentPassword = passwordData.get("currentPassword");
+            String newPassword = passwordData.get("newPassword");
+
+            // Trouver l'utilisateur
+            Optional<User> userOpt = userRepository.findByUid(uid);
+            Optional<Agent> agentOpt = agentRepository.findByUid(uid);
+            Optional<Admin> adminOpt = adminRepository.findByUid(uid);
+
+            Object user = null;
+            if (userOpt.isPresent()) user = userOpt.get();
+            else if (agentOpt.isPresent()) user = agentOpt.get();
+            else if (adminOpt.isPresent()) user = adminOpt.get();
+            else {
+                return ResponseEntity.notFound().build();
+            }
+
+            // Vérifier le mot de passe actuel
+            String storedPassword = getPasswordFromUser(user);
+            if (!passwordEncoder.matches(currentPassword, storedPassword)) {
+                return ResponseEntity.badRequest().body(
+                        Map.of("error", "Mot de passe actuel incorrect")
+                );
+            }
+
+            // 🔥 METTRE À JOUR FIREBASE AUSSI
+            try {
+                UserRecord.UpdateRequest request = new UserRecord.UpdateRequest(uid)
+                        .setPassword(newPassword);
+                firebaseAuth.updateUser(request);
+            } catch (FirebaseAuthException e) {
+                return ResponseEntity.badRequest().body(
+                        Map.of("error", "Erreur Firebase: " + e.getMessage())
+                );
+            }
+
+            // Mettre à jour la base MySQL
+            if (user instanceof User) {
+                ((User) user).setMotDePasse(passwordEncoder.encode(newPassword));
+                userRepository.save((User) user);
+            } else if (user instanceof Agent) {
+                ((Agent) user).setMotDePasse(passwordEncoder.encode(newPassword));
+                agentRepository.save((Agent) user);
+            } else if (user instanceof Admin) {
+                ((Admin) user).setMotDePasse(passwordEncoder.encode(newPassword));
+                adminRepository.save((Admin) user);
+            }
+
+            return ResponseEntity.ok(Map.of("message", "Mot de passe mis à jour avec succès"));
+
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(
+                    Map.of("error", "Erreur lors du changement de mot de passe", "message", e.getMessage())
+            );
+        }
+    }
+    // Méthode helper pour récupérer le mot de passe
+    private String getPasswordFromUser(Object user) {
+        if (user instanceof User) return ((User) user).getMotDePasse();
+        if (user instanceof Agent) return ((Agent) user).getMotDePasse();
+        if (user instanceof Admin) return ((Admin) user).getMotDePasse();
+        return null;
     }
 }

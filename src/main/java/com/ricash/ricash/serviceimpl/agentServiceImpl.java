@@ -6,6 +6,8 @@ import com.google.firebase.auth.FirebaseToken;
 import com.google.firebase.auth.UserRecord;
 import com.ricash.ricash.config.FirebaseAuthService;
 import com.ricash.ricash.config.FirebaseTokendFilter;
+import com.ricash.ricash.dto.AdminSimpleDTO;
+import com.ricash.ricash.dto.AgentDTO;
 import com.ricash.ricash.dto.AgentValidationRequest;
 import com.ricash.ricash.model.Admin;
 import com.ricash.ricash.model.Agent;
@@ -29,6 +31,7 @@ import java.nio.file.StandardCopyOption;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Transactional
 @Service
@@ -50,7 +53,41 @@ public class agentServiceImpl implements agentService {
         this.firebaseTokendFilter = firebaseTokendFilter;
     }
 
+    private AgentDTO convertToAgentDTO(Agent agent) {
+        if (agent == null) return null;
 
+        AgentDTO dto = new AgentDTO();
+        dto.setId(agent.getId());
+        dto.setUid(agent.getUid());
+        dto.setIdentifiant(agent.getIdentifiant());
+        dto.setEmail(agent.getEmail());
+        dto.setNom(agent.getNom());
+        dto.setPrenom(agent.getPrenom());
+        dto.setTelephone(agent.getTelephone());
+        dto.setImageRectoUrl(agent.getImageRectoUrl());
+        dto.setImageVersoUrl(agent.getImageVersoUrl());
+        dto.setSoldeCaisse(agent.getSoldeCaisse());
+        dto.setKycStatut(agent.getKycStatut());
+        dto.setEstActif(agent.isEstActif());
+        dto.setEstValide(agent.isEstValide());
+        dto.setRaisonRejet(agent.getRaisonRejet());
+        dto.setCreatedAt(agent.getCreatedAt());
+        dto.setUpdatedAt(agent.getUpdatedAt());
+        dto.setRole(agent.getRole());
+
+        // Mapper l'admin de manière contrôlée pour éviter la récursion
+        if (agent.getAdmin() != null) {
+            Admin admin = agent.getAdmin();
+            AdminSimpleDTO adminInfo = new AdminSimpleDTO();
+            adminInfo.setId(admin.getId());
+            adminInfo.setNom(admin.getNom());
+            adminInfo.setPrenom(admin.getPrenom());
+            adminInfo.setEmail(admin.getEmail());
+            dto.setAdmin(adminInfo);
+        }
+
+        return dto;
+    }
     public Agent registerAgent(Agent request, MultipartFile file,  MultipartFile fil)
             throws FirebaseAuthException, IOException {
 
@@ -153,7 +190,7 @@ public class agentServiceImpl implements agentService {
     }
 
 
-    public Agent validateAgent(AgentValidationRequest request, String token) {
+    public AgentDTO validateAgent(AgentValidationRequest request, String token) {
         Agent agent = agentRepository.findById(request.getAgentId())
                 .orElseThrow(() -> new RuntimeException("Agent non trouvé"));
 
@@ -192,7 +229,8 @@ public class agentServiceImpl implements agentService {
             }
 
             agent.setUpdatedAt(LocalDateTime.now());
-            return agentRepository.save(agent);
+            Agent savedAgent = agentRepository.save(agent);
+            return convertToAgentDTO(savedAgent);
 
         } catch (FirebaseAuthException e) {
             throw new RuntimeException("Token Firebase invalide: " + e.getMessage());
@@ -200,16 +238,18 @@ public class agentServiceImpl implements agentService {
     }
 
 
-    public List<Agent> getAgentsEnAttente() {
-        return agentRepository.findByEstValideFalseAndKycStatut(statutKYC.EN_COURS);
+    public List<AgentDTO> getAgentsEnAttente() {
+        List<Agent> agents = agentRepository.findByEstValideFalseAndKycStatut(statutKYC.EN_COURS);
+        return convertToAgentDTOList(agents);
     }
 
-    public List<Agent> getAgentsValides() {
-        return agentRepository.findByEstValideTrue();
+    public List<AgentDTO> getAgentsValides() {
+        List<Agent> agents = agentRepository.findByEstValideTrue();
+        return convertToAgentDTOList(agents);
     }
 
     @Override
-    public Agent toggleAgentStatus(Long agentId, boolean isActive, String token) {
+    public AgentDTO toggleAgentStatus(Long agentId, boolean isActive, String token) {
         Agent agent = agentRepository.findById(agentId)
                 .orElseThrow(() -> new RuntimeException("Agent non trouvé"));
 
@@ -239,7 +279,8 @@ public class agentServiceImpl implements agentService {
             agent.setAdmin(admin); // Enregistrer quel admin a fait la modification
             agent.setUpdatedAt(LocalDateTime.now());
 
-            return agentRepository.save(agent);
+            Agent savedAgent = agentRepository.save(agent);
+            return convertToAgentDTO(savedAgent);
 
         } catch (FirebaseAuthException e) {
             throw new RuntimeException("Token Firebase invalide: " + e.getMessage());
@@ -247,7 +288,23 @@ public class agentServiceImpl implements agentService {
     }
 
     @Override
-    public List<Agent> getAllAgents() {
-        return agentRepository.findAll();
+    public List<AgentDTO> getAllAgents() {
+        List<Agent> agents = agentRepository.findAll();
+        return convertToAgentDTOList(agents);
     }
+
+    // Méthode supplémentaire pour obtenir un agent par ID
+    public AgentDTO getAgentById(Long id) {
+        Agent agent = agentRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Agent non trouvé"));
+        return convertToAgentDTO(agent);
+    }
+    // Méthode utilitaire pour convertir une liste d'agents en liste de DTO
+    private List<AgentDTO> convertToAgentDTOList(List<Agent> agents) {
+        return agents.stream()
+                .map(this::convertToAgentDTO)
+                .collect(Collectors.toList());
+    }
+
+
 }

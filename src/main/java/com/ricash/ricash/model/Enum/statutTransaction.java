@@ -6,4 +6,5 @@ public enum statutTransaction {
     COMPLETEE,
     ANNULEE,
     ECHOUEE,
+    REJETEE,
 }

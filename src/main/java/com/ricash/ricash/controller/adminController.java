@@ -1,6 +1,7 @@
 package com.ricash.ricash.controller;
 
 import com.google.firebase.auth.FirebaseAuthException;
+import com.ricash.ricash.dto.AgentDTO;
 import com.ricash.ricash.dto.AgentValidationRequest;
 import com.ricash.ricash.dto.UserRegistrationRequest;
 import com.ricash.ricash.model.Admin;
@@ -39,8 +40,13 @@ public class adminController {
     }
 
     @GetMapping("/agents/en-attente")
-    public ResponseEntity<List<Agent>> getAgentsEnAttente() {
-        return ResponseEntity.ok(agentService.getAgentsEnAttente());
+    public ResponseEntity<List<AgentDTO>> getAgentsEnAttente() {
+        try {
+            List<AgentDTO> agents = agentService.getAgentsEnAttente();
+            return ResponseEntity.ok(agents);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
+        }
     }
 
     // Valider ou rejeter un agent
@@ -48,15 +54,21 @@ public class adminController {
     public ResponseEntity<?> validateAgent(@RequestBody AgentValidationRequest request,
                                            @RequestHeader("Authorization") String authHeader) {
         try {
-            // Extraire proprement le token du header
             String idToken = authHeader.substring("Bearer ".length()).trim();
-            System.out.println("Token reçu: " + idToken); // Log pour vérification
+            System.out.println("Token reçu: " + idToken);
 
-            Agent created = agentService.validateAgent(request, idToken); // Envoyer le token brut
-            return ResponseEntity.ok(created);
+            AgentDTO validatedAgent = agentService.validateAgent(request, idToken);
+
+            Map<String, Object> response = new HashMap<>();
+            response.put("message", "Agent " + (request.isValidation() ? "validé" : "rejeté") + " avec succès");
+            response.put("agent", validatedAgent);
+
+            return ResponseEntity.ok(response);
         } catch (RuntimeException e) {
-            System.err.println("Erreur création: " + e.getMessage());
-            return ResponseEntity.badRequest().body(e.getMessage());
+            System.err.println("Erreur validation: " + e.getMessage());
+            return ResponseEntity.badRequest().body(
+                    Map.of("error", "Erreur de validation", "message", e.getMessage())
+            );
         }
     }
 
@@ -95,21 +107,19 @@ public class adminController {
         }
     }
 
+
     @PostMapping("/agents/{agentId}/toggle-status")
     public ResponseEntity<?> toggleAgentStatus(@PathVariable Long agentId,
                                                @RequestParam boolean active,
                                                @RequestHeader("Authorization") String authHeader) {
         try {
-            // Extraire le token du header Authorization
             String token = authHeader.replace("Bearer ", "").trim();
-
-            Agent updatedAgent = agentService.toggleAgentStatus(agentId, active, token);
+            AgentDTO updatedAgent = agentService.toggleAgentStatus(agentId, active, token);
 
             Map<String, Object> response = new HashMap<>();
             response.put("message", "Statut de l'agent modifié avec succès");
-            response.put("agentId", updatedAgent.getId());
+            response.put("agent", updatedAgent);
             response.put("estActif", updatedAgent.isEstActif());
-            response.put("updatedBy", updatedAgent.getAdmin().getEmail());
 
             return ResponseEntity.ok(response);
 
@@ -124,11 +134,12 @@ public class adminController {
         }
     }
 
+
     // Récupérer tous les agents
     @GetMapping("/agents")
-    public ResponseEntity<List<Agent>> getAllAgents() {
+    public ResponseEntity<List<AgentDTO>> getAllAgents() {
         try {
-            List<Agent> agents = agentService.getAllAgents();
+            List<AgentDTO> agents = agentService.getAllAgents();
             return ResponseEntity.ok(agents);
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
@@ -137,20 +148,23 @@ public class adminController {
 
     // Récupérer les agents actifs
     @GetMapping("/agents/actifs")
-    public ResponseEntity<List<Agent>> getAgentsActifs() {
+    public ResponseEntity<List<AgentDTO>> getAgentsActifs() {
         try {
-            List<Agent> agents = agentRepository.findByEstActifTrue();
+            List<AgentDTO> agents = agentService.getAgentsValides().stream()
+                    .filter(AgentDTO::isEstActif)
+                    .collect(java.util.stream.Collectors.toList());
             return ResponseEntity.ok(agents);
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
         }
     }
 
-    // Récupérer les agents inactifs
     @GetMapping("/agents/inactifs")
-    public ResponseEntity<List<Agent>> getAgentsInactifs() {
+    public ResponseEntity<List<AgentDTO>> getAgentsInactifs() {
         try {
-            List<Agent> agents = agentRepository.findByEstActifFalse();
+            List<AgentDTO> agents = agentService.getAllAgents().stream()
+                    .filter(agent -> !agent.isEstActif())
+                    .collect(java.util.stream.Collectors.toList());
             return ResponseEntity.ok(agents);
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
@@ -188,37 +202,37 @@ public class adminController {
     }
 
     // Récupérer tous les utilisateurs
-    @GetMapping("/users")
-    public ResponseEntity<List<User>> getAllUsers() {
-        try {
-            List<User> users = userService.getAllUsers();
-            return ResponseEntity.ok(users);
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
-        }
-    }
+//    @GetMapping("/users")
+//    public ResponseEntity<List<User>> getAllUsers() {
+//        try {
+//            List<User> users = userService.getAllUsers();
+//            return ResponseEntity.ok(users);
+//        } catch (Exception e) {
+//            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
+//        }
+//    }
 
-    // Récupérer les utilisateurs actifs
-    @GetMapping("/users/actifs")
-    public ResponseEntity<List<User>> getUsersActifs() {
-        try {
-            List<User> users = userService.getActiveUsers();
-            return ResponseEntity.ok(users);
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
-        }
-    }
-
-    // Récupérer les utilisateurs inactifs
-    @GetMapping("/users/inactifs")
-    public ResponseEntity<List<User>> getUsersInactifs() {
-        try {
-            List<User> users = userService.getInactiveUsers();
-            return ResponseEntity.ok(users);
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
-        }
-    }
+//    // Récupérer les utilisateurs actifs
+//    @GetMapping("/users/actifs")
+//    public ResponseEntity<List<User>> getUsersActifs() {
+//        try {
+//            List<User> users = userService.getActiveUsers();
+//            return ResponseEntity.ok(users);
+//        } catch (Exception e) {
+//            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
+//        }
+//    }
+//
+//    // Récupérer les utilisateurs inactifs
+//    @GetMapping("/users/inactifs")
+//    public ResponseEntity<List<User>> getUsersInactifs() {
+//        try {
+//            List<User> users = userService.getInactiveUsers();
+//            return ResponseEntity.ok(users);
+//        } catch (Exception e) {
+//            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
+//        }
+//    }
 
     // Récupérer les utilisateurs en attente de validation KYC
 //    @GetMapping("/users/en-attente-validation")

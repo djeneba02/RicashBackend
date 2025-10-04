@@ -1,10 +1,12 @@
 package com.ricash.ricash.config;
 
-import com.google.api.client.util.Value;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseAuthException;
 import com.google.firebase.auth.FirebaseToken;
 import com.google.firebase.auth.UserRecord;
+import com.ricash.ricash.Mappe.AdminMapper;
+import com.ricash.ricash.Mappe.UserMapper;
+import com.ricash.ricash.Mappe.AgentMapper;
 import com.ricash.ricash.model.User;
 import com.ricash.ricash.model.Admin;
 import com.ricash.ricash.model.Agent;
@@ -33,13 +35,19 @@ public class FirebaseAuthService {
     private final agentRepository agentRepository;
     private final PasswordEncoder passwordEncoder;
     private final userRepository userRepository;
+    private final UserMapper userMapper;
+    private final AgentMapper agentMapper;
+    private final AdminMapper adminMapper;
 
-    public FirebaseAuthService(FirebaseAuth firebaseAuth, adminRepository adminRepository, agentRepository agentRepository, PasswordEncoder passwordEncoder, userRepository userRepository) {
+    public FirebaseAuthService(FirebaseAuth firebaseAuth, adminRepository adminRepository, agentRepository agentRepository, PasswordEncoder passwordEncoder, userRepository userRepository, UserMapper userMapper, AgentMapper agentMapper, AdminMapper adminMapper) {
         this.firebaseAuth = firebaseAuth;
         this.adminRepository = adminRepository;
         this.agentRepository = agentRepository;
         this.passwordEncoder = passwordEncoder;
         this.userRepository = userRepository;
+        this.userMapper = userMapper;
+        this.agentMapper = agentMapper;
+        this.adminMapper = adminMapper;
     }
 
 
@@ -69,15 +77,6 @@ public FirebaseToken verifyToken(String idToken) throws FirebaseAuthException {
         if (user == null) {
             throw new Exception("Utilisateur non trouvé");
         }
-
-//        if (user instanceof Agent agent) {
-//            if (!agent.isEstValide()) {
-//                throw new Exception("Compte agent en attente de validation par l'administrateur");
-//            }
-//            if (!agent.isEstActif()) {
-//                throw new Exception("Compte agent désactivé");
-//            }
-//        }
 
         // 2. Vérification état
         if (!isUserActive(user)) {
@@ -163,40 +162,52 @@ public FirebaseToken verifyToken(String idToken) throws FirebaseAuthException {
         return 0L;
     }
 
+//    private Map<String, Object> buildResponse(Object user, Object idToken, String customToken) {
+//        Map<String, Object> response = new HashMap<>();
+//
+//        response.put("userId", getIdFromUser(user));
+//        response.put("customToken", customToken);
+//        response.put("idToken", idToken);
+//        response.put("email", getEmailFromUser(user));
+//        response.put("role", getRoleFromUser(user));
+//        response.put("isActif", isUserActive(user));
+//
+//        // Ajouter les données spécifiques
+//        if (user instanceof User u) {
+//            response.put("userData", Map.of(
+//                    "nom", u.getNom(),
+//                    "prenom", u.getPrenom(),
+//                    "telephone", u.getTelephone()
+//            ));
+//        } else if (user instanceof Agent a) {
+//            response.put("userData", Map.of(
+//                    "nom", a.getNom(),
+//                    "prenom", a.getPrenom(),
+//                    "telephone", a.getTelephone(),
+//                    "identifiant", a.getIdentifiant()
+//            ));
+//        } else if (user instanceof Admin admin) {
+//            response.put("userData", Map.of(
+//                    "nom", admin.getNom(),
+//                    "prenom", admin.getPrenom(),
+//                    "telephone", admin.getTelephone()
+//            ));
+//        }
+//
+//        return response;
+//    }
+
     private Map<String, Object> buildResponse(Object user, Object idToken, String customToken) {
-        Map<String, Object> response = new HashMap<>();
-
-        response.put("userId", getIdFromUser(user));
-        response.put("customToken", customToken);
-        response.put("idToken", idToken);
-        response.put("email", getEmailFromUser(user));
-        response.put("role", getRoleFromUser(user));
-        response.put("isActif", isUserActive(user));
-
-        // Ajouter les données spécifiques
-        if (user instanceof User u) {
-            response.put("userData", Map.of(
-                    "nom", u.getNom(),
-                    "prenom", u.getPrenom(),
-                    "telephone", u.getTelephone()
-            ));
-        } else if (user instanceof Agent a) {
-            response.put("userData", Map.of(
-                    "nom", a.getNom(),
-                    "prenom", a.getPrenom(),
-                    "telephone", a.getTelephone(),
-                    "identifiant", a.getIdentifiant()
-            ));
-        } else if (user instanceof Admin admin) {
-            response.put("userData", Map.of(
-                    "nom", admin.getNom(),
-                    "prenom", admin.getPrenom(),
-                    "telephone", admin.getTelephone()
-            ));
+        if (user instanceof User) {
+            return userMapper.toLoginResponse((User) user, (String) idToken, customToken);
+        } else if (user instanceof Agent) {
+            return agentMapper.toLoginResponse((Agent) user, (String) idToken, customToken);
+        } else if (user instanceof Admin) {
+            return adminMapper.toLoginResponse((Admin) user, (String) idToken, customToken);
         }
-
-        return response;
+        throw new IllegalArgumentException("Type d'utilisateur non supporté");
     }
+
 
     private String getEmailFromUser(Object user) {
         if (user instanceof User) return ((User) user).getEmail();

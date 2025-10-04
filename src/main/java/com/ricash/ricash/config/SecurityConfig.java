@@ -55,6 +55,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/agents/register").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/admins/register").permitAll()
 
+                        .requestMatchers("/api/auth/me").authenticated()
                         // Routes admin seulement
                         .requestMatchers("/api/admin/**", "/api/admin/agents/validation").hasRole("ADMIN")
 

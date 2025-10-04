@@ -1,7 +1,6 @@
 package com.ricash.ricash.dto;
 
 import lombok.Data;
-
 import java.time.LocalDateTime;
 import java.util.Date;
 
@@ -19,4 +18,11 @@ public class UserRegistrationRequest {
     private String raison;
     private String dateNaissance;
     private Enum statatKYC;
+
+    // Ajoutez ces champs pour l'adresse
+    private String ligne1;
+    private String ligne2;
+    private String ville;
+    private String codePostal;
+    private String pays;
 }
