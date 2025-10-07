@@ -38,7 +38,7 @@ import java.util.Optional;
 public class AuthController {
 
     @Value("${firebase.api.key}")
-    private String ApiKey;
+    private final String ApiKey = "AIzaSyDYKYGtV5spNjorZP7sQB9JAfM1wnepqek";
 
     private final FirebaseAuth firebaseAuth;
     private final agentService agentService;

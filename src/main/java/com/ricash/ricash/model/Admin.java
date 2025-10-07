@@ -36,6 +36,9 @@ public class Admin {
     @Column(nullable = false)
     private String motDePasse;
 
+
+    private String avatarUrl;
+
     @Enumerated(EnumType.STRING)
     private statutKYC kycStatut;
 

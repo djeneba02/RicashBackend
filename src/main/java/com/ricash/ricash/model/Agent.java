@@ -47,6 +47,8 @@ public class Agent {
     @Column(nullable = false)
     private Double soldeCaisse;
 
+    private String avatarUrl;
+
     @Enumerated(EnumType.STRING)
     private statutKYC kycStatut;
 

@@ -71,50 +71,103 @@ public FirebaseToken verifyToken(String idToken) throws FirebaseAuthException {
 
 
     public Map<String, Object> loginWithEmail(String email, String password, String userType) throws Exception {
-        // 1. Vérification MySQL selon le type
-        Object user = findUserByEmailAndType(email, userType);
+        try {
+            System.out.println("=== DÉBUT LOGIN ===");
+            System.out.println("Email: " + email + ", Type: " + userType);
 
-        if (user == null) {
-            throw new Exception("Utilisateur non trouvé");
+            // 1. Vérification MySQL selon le type
+            Object user = findUserByEmailAndType(email, userType);
+            System.out.println("Utilisateur trouvé en DB: " + (user != null ? "OUI" : "NON"));
+
+            if (user == null) {
+                throw new Exception("Utilisateur non trouvé");
+            }
+
+            // 2. Vérification état
+            if (!isUserActive(user)) {
+                throw new Exception("Compte désactivé. Contactez l'administrateur.");
+            }
+
+            // 3. Vérification mot de passe
+            String storedPassword = getPasswordFromUser(user);
+            if (storedPassword == null || storedPassword.isEmpty()) {
+                throw new Exception("Mot de passe non configuré");
+            }
+
+            if (!passwordEncoder.matches(password, storedPassword)) {
+                throw new Exception("Mot de passe incorrect");
+            }
+            System.out.println("Mot de passe vérifié: OK");
+
+            // 4. Génération custom token
+            String uid = getUidFromUser(user);
+            System.out.println("UID pour custom token: " + uid);
+
+            // VÉRIFIER QUE L'UTILISATEUR EXISTE DANS FIREBASE
+            try {
+                UserRecord firebaseUser = firebaseAuth.getUser(uid);
+                System.out.println("Utilisateur trouvé dans Firebase: " + firebaseUser.getEmail());
+            } catch (FirebaseAuthException e) {
+                System.err.println("ERREUR: Utilisateur non trouvé dans Firebase: " + e.getMessage());
+                throw new Exception("Utilisateur non configuré dans Firebase");
+            }
+
+            // CORRECTION: Supprimer la déclaration dupliquée de 'claims'
+            Map<String, Object> claims = new HashMap<>();
+            claims.put("role", getRoleFromUser(user));
+            claims.put("userId", getIdFromUser(user));
+            System.out.println("Claims: " + claims);
+
+            String customToken;
+            try {
+                // SUPPRIMER cette ligne qui cause l'erreur:
+                // Map<String, Object> claims = new HashMap<>(); // ← À SUPPRIMER
+                customToken = firebaseAuth.createCustomToken(uid, claims);
+                System.out.println("Custom token généré avec succès, longueur: " + customToken.length());
+                System.out.println("Token (premiers 50 caractères): " + customToken.substring(0, Math.min(50, customToken.length())) + "...");
+            } catch (FirebaseAuthException e) {
+                System.err.println("Échec création custom token: " + e.getErrorCode() + " - " + e.getMessage());
+                throw new Exception("Erreur interne d'authentification: " + e.getMessage(), e);
+            }
+
+            // 5. Échange contre ID token
+            String url = "https://identitytoolkit.googleapis.com/v1/accounts:signInWithCustomToken?key=" + firebaseApiKey;
+            System.out.println("URL API Firebase: " + url);
+
+            Map<String, String> request = new HashMap<>();
+            request.put("token", customToken);
+            request.put("returnSecureToken", "true");
+            System.out.println("Requête envoyée à Firebase: " + request);
+
+            try {
+                ResponseEntity<Map> response = new RestTemplate().postForEntity(url, request, Map.class);
+                System.out.println("Statut réponse Firebase: " + response.getStatusCode());
+                System.out.println("Corps réponse Firebase: " + response.getBody());
+
+                if (response.getStatusCode() != HttpStatus.OK || !response.getBody().containsKey("idToken")) {
+                    System.err.println("Échec échange token - Body: " + response.getBody());
+                    throw new Exception("Firebase a rejeté le token: " + response.getBody());
+                }
+
+                String idToken = (String) response.getBody().get("idToken");
+                System.out.println("ID token reçu, longueur: " + idToken.length());
+                System.out.println("=== LOGIN RÉUSSI ===");
+
+                return buildResponse(user, idToken, customToken);
+
+            } catch (Exception e) {
+                System.err.println("Erreur lors de l'appel Firebase API: " + e.getMessage());
+                throw new Exception("Erreur de communication avec Firebase: " + e.getMessage(), e);
+            }
+
+        } catch (Exception e) {
+            System.err.println("=== ERREUR LOGIN ===");
+            System.err.println("Message: " + e.getMessage());
+            if (e.getCause() != null) {
+                System.err.println("Cause: " + e.getCause().getMessage());
+            }
+            throw e;
         }
-
-        // 2. Vérification état
-        if (!isUserActive(user)) {
-            throw new Exception("Compte désactivé. Contactez l'administrateur.");
-        }
-
-        // 3. Vérification mot de passe
-        String storedPassword = getPasswordFromUser(user);
-        if (storedPassword == null || storedPassword.isEmpty()) {
-            throw new Exception("Mot de passe non configuré");
-        }
-
-        if (!passwordEncoder.matches(password, storedPassword)) {
-            throw new Exception("Mot de passe incorrect");
-        }
-
-        // 4. Génération custom token
-        Map<String, Object> claims = new HashMap<>();
-        claims.put("role", getRoleFromUser(user));
-        claims.put("userId", getIdFromUser(user));
-
-        String uid = getUidFromUser(user);
-        String customToken = firebaseAuth.createCustomToken(uid, claims);
-
-        // 5. Échange contre ID token
-        String url = "https://identitytoolkit.googleapis.com/v1/accounts:signInWithCustomToken?key=" + firebaseApiKey;
-
-        Map<String, String> request = new HashMap<>();
-        request.put("token", customToken);
-        request.put("returnSecureToken", "true");
-
-        ResponseEntity<Map> response = new RestTemplate().postForEntity(url, request, Map.class);
-
-        if (response.getStatusCode() != HttpStatus.OK || !response.getBody().containsKey("idToken")) {
-            throw new Exception("Échec de génération du token Firebase");
-        }
-
-        return buildResponse(user, response.getBody().get("idToken"), customToken);
     }
 
     // Méthodes helper simplifiées

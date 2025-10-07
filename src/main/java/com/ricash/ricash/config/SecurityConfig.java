@@ -61,6 +61,7 @@ public class SecurityConfig {
 
                         // Routes agent
                         .requestMatchers("/api/agent/**").hasAnyRole("AGENT", "ADMIN")
+                        .requestMatchers("/api/profil/**").authenticated()
 
                         // Routes user
                         .requestMatchers("/api/user/**").hasAnyRole("USER", "AGENT", "ADMIN")

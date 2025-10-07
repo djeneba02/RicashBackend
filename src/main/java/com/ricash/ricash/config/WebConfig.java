@@ -17,7 +17,7 @@ public class WebConfig implements WebMvcConfigurer {
 
         // Ajouter un mapping spécifique pour les uploads si nécessaire
         registry.addMapping("/uploads/**")
-                .allowedOrigins("http://localhost:3000", "http://localhost:4200") // Ajouter React
+                .allowedOrigins("http://localhost:5173", "http://localhost:4200") // Ajouter React
                 .allowedMethods("GET")
                 .allowedHeaders("*")
                 .allowCredentials(true);
