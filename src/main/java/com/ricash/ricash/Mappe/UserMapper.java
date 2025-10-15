@@ -96,14 +96,9 @@
 
 
 package com.ricash.ricash.Mappe;
-
-import com.ricash.ricash.dto.AdminSimpleDTO;
-import com.ricash.ricash.dto.AgentDTO;
 import com.ricash.ricash.dto.UserResponseDTO;
-import com.ricash.ricash.model.Agent;
 import com.ricash.ricash.model.User;
 import org.mapstruct.Mapper;
-import org.mapstruct.Mapping;
 
 import java.util.HashMap;
 import java.util.Map;

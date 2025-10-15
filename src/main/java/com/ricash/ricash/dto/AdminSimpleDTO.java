@@ -12,4 +12,5 @@ public class AdminSimpleDTO {
     private String telephone;
     private String role;
     private boolean estActif;
+    private String avatarUrl;
 }

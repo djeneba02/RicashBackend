@@ -108,6 +108,22 @@ public class adminController {
     }
 
 
+    // Récupérer un agent par son ID
+    @GetMapping("/agents/{id}")
+    public ResponseEntity<AgentDTO> getAgentById(@PathVariable Long id) {
+        try {
+            AgentDTO agent = agentService.getAgentById(id);
+            if (agent != null) {
+                return ResponseEntity.ok(agent);
+            } else {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(null);
+            }
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
+        }
+    }
+
+
     @PostMapping("/agents/{agentId}/toggle-status")
     public ResponseEntity<?> toggleAgentStatus(@PathVariable Long agentId,
                                                @RequestParam boolean active,

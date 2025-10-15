@@ -57,4 +57,9 @@ public class UserController {
     public List<UserResponseDTO> getAllUsers() {
         return userService.getAllUsers();
     }
+
+    @GetMapping("/{userId}")
+    public UserResponseDTO getUserById(@PathVariable Long userId) {
+        return userService.getUserById(userId);
+    }
 }

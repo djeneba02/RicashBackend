@@ -1,5 +1,7 @@
 package com.ricash.ricash.controller;
 
+import com.ricash.ricash.Mappe.TransactionMapper;
+import com.ricash.ricash.dto.TransactionDTO;
 import com.ricash.ricash.dto.TransferRequest;
 import com.ricash.ricash.model.Enum.statutTransaction;
 import com.ricash.ricash.model.Transaction;
@@ -9,6 +11,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/transactions")
@@ -16,6 +19,7 @@ import java.util.List;
 public class TransactionController {
 
     private final transactionService transactionService;
+    private final TransactionMapper transactionMapper;
 
     @PostMapping("/initier")
     public Transaction initierTransfert(@RequestBody TransferRequest request,
@@ -31,9 +35,9 @@ public class TransactionController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<Transaction> getTransaction(@PathVariable Long id) {
+    public ResponseEntity<TransactionDTO> getTransaction(@PathVariable Long id) {
         Transaction transaction = transactionService.getTransactionById(id);
-        return ResponseEntity.ok(transaction);
+        return ResponseEntity.ok(transactionMapper.toDTO(transaction));
     }
 
     @GetMapping("/code/{codeTransaction}")
@@ -96,5 +100,14 @@ public class TransactionController {
     public ResponseEntity<List<Transaction>> getTransactionsAnnulees() {
         List<Transaction> transactions = transactionService.getTransactionsByStatut(statutTransaction.ANNULEE);
         return ResponseEntity.ok(transactions);
+    }
+
+    @GetMapping
+    public ResponseEntity<List<TransactionDTO>> getAllTransactions() {
+        List<Transaction> transactions = transactionService.getAllTransactions();
+        List<TransactionDTO> transactionDTOs = transactions.stream()
+                .map(transactionMapper::toDTO)
+                .collect(Collectors.toList());
+        return ResponseEntity.ok(transactionDTOs);
     }
 }

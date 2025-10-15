@@ -319,7 +319,7 @@ public class AuthController {
 
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(
-                    Map.of("error", "Token invalide", "message", e.getMessage())
+                      Map.of("error", "Token invalide", "message", e.getMessage())
             );
         }
     }

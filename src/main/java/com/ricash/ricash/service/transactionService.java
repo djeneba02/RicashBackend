@@ -14,5 +14,6 @@ public interface transactionService {
     List<Transaction> getTransactionsByUserId(Long userId);
     List<Transaction> getTransactionsByAgentId(Long agentId);
     Transaction annulerTransaction(Long transactionId);
+    List<Transaction> getAllTransactions();
     Transaction rejeterTransaction(Long transactionId, String raison);
 }

@@ -27,6 +27,7 @@ public class AgentDTO {
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     private String role;
+    private String avatarUrl;
 
     // Informations minimales de l'admin pour éviter la récursion
     private AdminSimpleDTO admin;

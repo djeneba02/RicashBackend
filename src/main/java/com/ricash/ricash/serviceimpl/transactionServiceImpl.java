@@ -429,4 +429,8 @@ public class transactionServiceImpl implements transactionService {
 
         return transactionRepository.save(transaction);
     }
+
+    public List<Transaction> getAllTransactions() {
+        return transactionRepository.findAll();
+    }
 }

@@ -11,7 +11,7 @@ public interface userService {
     User registerUser(UserRegistrationRequest userRequest, MultipartFile rectoFile, MultipartFile versoFile) throws Exception;
     User validateUserDocuments(UserRegistrationRequest request, boolean isValid, String token) ;
     User toggleUserStatus(Long userId, boolean isActive, String token);
-
+    UserResponseDTO getUserById(Long userId);
     List<UserResponseDTO> getAllUsers();
     List<UserResponseDTO> getActiveUsers();
     List<UserResponseDTO> getInactiveUsers();

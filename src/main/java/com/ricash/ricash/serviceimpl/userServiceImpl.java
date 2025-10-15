@@ -354,4 +354,13 @@ public class userServiceImpl implements userService {
                 .map(userMapper::toDto)
                 .collect(Collectors.toList());
     }
+
+    @Override
+    public UserResponseDTO getUserById(Long userId) {
+        return userRepository.findById(userId)
+                .map(userMapper::toDto) // Utilisez le mapper existant
+                .orElseThrow(() -> new RuntimeException("Utilisateur non trouvé avec l'ID: " + userId));
+    }
+
+
 }
